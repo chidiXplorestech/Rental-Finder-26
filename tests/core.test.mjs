@@ -1,0 +1,10 @@
+import test from "node:test"; import assert from "node:assert/strict";
+import { extractRent,extractBedrooms,extractFloorArea,extractPostcode,classifyStudent,classifyStale,normalizeSearchResult,dedupeListings,validateFilters,buildQuery } from "../lib/core.mjs";
+
+test("extracts rental details",()=>{ const t="2 bedroom flat £950 pcm, total floor area 68 m2, Nottingham NG7 1AA"; assert.equal(extractRent(t),950); assert.equal(extractBedrooms(t),2); assert.ok(extractFloorArea(t)>=730); assert.equal(extractPostcode(t),"NG7 1AA"); });
+test("student-only and stale text is detected",()=>{ assert.equal(classifyStudent("Student house - academic year"),true); assert.equal(classifyStale("This property is now Let Agreed"),true); });
+test("normalizer keeps incomplete candidates as needs-verification",()=>{ const x=normalizeSearchResult({title:"2 bed flat to rent NG3",snippet:"£900 pcm professional let",url:"https://agent.example/a"},{location:"Nottingham",bedrooms:2,maxRent:1000,minSqft:600,excludeStudents:true,propertyType:"any"}); assert.ok(x); assert.equal(x.verified,false); });
+test("normalizer rejects known failures",()=>{ const x=normalizeSearchResult({title:"2 bed student house",snippet:"£900 pcm 700 sqft students only NG7 1AA",url:"https://agent.example/a"},{bedrooms:2,maxRent:1000,minSqft:600,excludeStudents:true,propertyType:"any"}); assert.equal(x,null); });
+test("dedupe removes duplicate URLs",()=>{ const a={sourceUrl:"https://x.test/a?utm_source=x",title:"A",score:1},b={sourceUrl:"https://x.test/a",title:"A",score:2}; assert.equal(dedupeListings([a,b]).length,1); assert.equal(dedupeListings([a,b])[0].score,2); });
+test("validation clamps malformed values",()=>{ const f=validateFilters({bedrooms:99,maxRent:-1,radius:1000,propertyType:"castle"}); assert.equal(f.bedrooms,8); assert.equal(f.maxRent,300); assert.equal(f.radius,50); assert.equal(f.propertyType,"any"); });
+test("query contains rental constraints",()=>{ const q=buildQuery({location:"Nottingham",bedrooms:2,maxRent:1000,excludeStudents:true}); assert.match(q,/Nottingham/); assert.match(q,/£1000/); assert.match(q,/-student/); });
