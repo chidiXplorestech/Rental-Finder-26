@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#10291f" />
+  <title>Rental Finder 26</title>
+  <meta name="description" content="Fresh rental discovery for Nottingham and beyond." />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Rental Finder 26 home">
+      <span class="brand-mark">RF</span>
+      <span><strong>Rental Finder</strong><em>26</em></span>
+    </a>
+    <div class="top-actions">
+      <span id="providerBadge" class="provider-badge">Checking rental sources…</span>
+      <button id="demoButton" class="ghost-button" type="button" hidden>Try demo</button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">CONNECTED RENTAL SOURCES</p>
+        <h1>Find the right place<br><span>before it disappears.</span></h1>
+        <p class="hero-sub">Refresh connected rental feeds and approved letting-agent sources, remove obvious student-only results, and see what still needs verification before you waste time clicking.</p>
+      </div>
+      <aside class="freshness-panel" aria-label="Freshness information">
+        <div class="pulse"><span></span> Freshness first</div>
+        <p>Results are labelled by confidence. Search-index sightings are never presented as directly verified availability.</p>
+      </aside>
+    </section>
+
+    <section class="search-panel" aria-labelledby="search-title">
+      <div class="search-head">
+        <div>
+          <p class="kicker">SEARCH PROFILE</p>
+          <h2 id="search-title">Nottingham professional rentals</h2>
+        </div>
+        <button id="resetButton" class="text-button" type="button">Reset defaults</button>
+      </div>
+
+      <form id="searchForm">
+        <div class="primary-search-row">
+          <label class="location-field">
+            <span>Location, postcode or town</span>
+            <div class="input-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Zm0-9.2a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6Z"/></svg>
+              <input id="location" name="location" value="Nottingham" autocomplete="postal-code" />
+            </div>
+          </label>
+          <button id="searchButton" class="primary-button" type="submit">
+            <span>Refresh rental sources</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>
+          </button>
+        </div>
+
+        <div class="filter-grid">
+          <label><span>Bedrooms</span><select id="bedrooms"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4+</option></select></label>
+          <label><span>Max rent / month</span><div class="money-input"><b>£</b><input id="maxRent" type="number" min="300" max="10000" step="25" value="1000" /></div></label>
+          <label><span>Minimum floor area</span><div class="unit-input"><input id="minSqft" type="number" min="0" max="5000" step="25" value="600" /><b>sq ft</b></div></label>
+          <label><span>Radius</span><div class="unit-input"><input id="radius" type="number" min="1" max="50" step="1" value="8" /><b>miles</b></div></label>
+          <label><span>Property type</span><select id="propertyType"><option value="any">Any type</option><option value="flat">Flat / apartment</option><option value="house">House</option><option value="bungalow">Bungalow</option></select></label>
+          <label><span>Listed within</span><select id="maxAgeDays"><option value="1">24 hours</option><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
+        </div>
+
+        <div class="options-row">
+          <label class="switch-line"><input id="excludeStudents" type="checkbox" checked /><span class="switch"></span><span><strong>Exclude student-only</strong><small>PBSA, student houses, academic-year lets</small></span></label>
+          <label class="keyword-field"><span>Keywords <small>optional</small></span><input id="keywords" placeholder="e.g. balcony, parking, furnished" /></label>
+        </div>
+
+        <div class="priority-row">
+          <span>Priority areas</span>
+          <div id="districtChips" class="chips" aria-label="Priority postcode districts"></div>
+        </div>
+      </form>
+    </section>
+
+    <section id="configNotice" class="notice notice-warning" hidden>
+      <div class="notice-icon">!</div>
+      <div><strong>No rental sources are connected yet.</strong><p>Add permitted public JSON/RSS/Atom feeds or approved rental source pages in <code>config/sources.mjs</code> or Netlify environment variables. No search-engine credentials are required.</p></div>
+    </section>
+
+    <section id="statusRegion" class="status-region" aria-live="polite">
+      <div class="status-copy">
+        <p class="kicker">RESULTS</p>
+        <div class="results-title-row"><h2 id="resultsTitle">Ready to search</h2><span id="resultCount" class="result-count">0 properties</span></div>
+        <p id="lastUpdated" class="updated-text">Refresh connected rental sources or try the demo dataset.</p>
+      </div>
+      <label class="sort-field"><span>Sort by</span><select id="sortSelect"><option value="best">Best match</option><option value="newest">Freshest</option><option value="priceAsc">Lowest rent</option><option value="sizeDesc">Largest</option></select></label>
+    </section>
+
+    <section class="results-toolbar">
+      <div class="tabs" role="tablist" aria-label="Result confidence">
+        <button class="tab active" data-tab="verified" role="tab">Verified matches <span id="verifiedCount">0</span></button>
+        <button class="tab" data-tab="needs" role="tab">Needs verification <span id="needsCount">0</span></button>
+        <button class="tab" data-tab="all" role="tab">All <span id="allCount">0</span></button>
+      </div>
+      <p id="searchMeta" class="search-meta"></p>
+    </section>
+
+    <section id="loadingState" class="loading-grid" hidden aria-label="Searching">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </section>
+
+    <section id="emptyState" class="empty-state">
+      <div class="empty-mark">⌂</div>
+      <h3>Your next place starts with a fresh source refresh.</h3>
+      <p>Defaults are set for two-bedroom professional rentals around Nottingham, under £1,000 pcm and ideally 600+ sq ft.</p>
+    </section>
+
+    <section id="partialNotice" class="notice notice-warning" hidden>
+      <div class="notice-icon">!</div><div><strong>Partial source refresh</strong><p id="partialText"></p></div>
+    </section>
+
+    <section id="errorState" class="notice notice-error" hidden>
+      <div class="notice-icon">×</div><div><strong id="errorTitle">Search failed</strong><p id="errorText"></p></div>
+    </section>
+
+    <section id="resultsGrid" class="results-grid" aria-label="Rental listings"></section>
+  </main>
+
+  <footer class="footer"><span>Rental Finder 26</span><p>Freshness and suitability are confidence signals, not guarantees. Always verify availability with the original advertiser.</p></footer>
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>
