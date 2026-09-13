@@ -46,13 +46,14 @@
           <label><span>Max rent / month</span><div class="money-input"><b>£</b><input id="maxRent" type="number" min="300" max="10000" step="25" value="1000" /></div></label>
           <label><span>Preferred floor area</span><div class="unit-input"><input id="minSqft" type="number" min="0" max="5000" step="25" value="600" /><b>sq ft</b></div></label>
           <label><span>Preferred type</span><select id="preferredType"><option value="flat" selected>Flat / apartment</option><option value="studio">Studio</option><option value="house">House</option><option value="bungalow">Bungalow</option><option value="any">Any type</option></select></label>
+          <label><span>Furnishing</span><select id="furnishing"><option value="any" selected>Any furnishing</option><option value="furnished">Furnished / part-furnished</option><option value="part_furnished">Part-furnished only</option><option value="unfurnished">Unfurnished</option></select></label>
           <label><span>First seen within</span><select id="maxAgeDays"><option value="1">24 hours</option><option value="3">3 days</option><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option><option value="90">90 days</option></select></label>
         </div>
 
         <div class="options-row">
           <label class="switch-line"><input id="excludeStudents" type="checkbox" checked /><span class="switch"></span><span><strong>Exclude student-only</strong><small>PBSA, student houses, academic-year lets</small></span></label>
           <label class="switch-line"><input id="acceptHouses" type="checkbox" checked /><span class="switch"></span><span><strong>Allow houses as fallback</strong><small>Flats remain the preferred match</small></span></label>
-          <label class="keyword-field"><span>Keywords <small>optional</small></span><input id="keywords" placeholder="e.g. balcony, parking, furnished" /></label>
+          <label class="keyword-field"><span>Keywords <small>optional</small></span><input id="keywords" placeholder="e.g. balcony, parking, garden" /></label>
         </div>
 
         <div class="priority-row"><span>Preferred areas</span><div id="areaChips" class="chips" aria-label="Preferred Nottingham areas"></div></div>
