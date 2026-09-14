@@ -1,14 +1,9 @@
 /**
- * Rental Finder 26 — Nottinghamshire source registry.
+ * Rental Finder 26 — independent Nottinghamshire source registry.
  *
- * These are public rental-index / branch pages that expose current rental
- * inventory on their own domains. The connector is deliberately conservative:
- * it performs ordinary HTTP GETs, does not bypass anti-bot controls, and treats
- * 403/429/timeouts as source failures rather than evidence that a property was
- * removed.
- *
- * IMPORTANT: website terms and robots policies can change. Re-check them
- * periodically and disable any source that no longer permits automated access.
+ * One entry represents one letting organisation, not one branch. The runtime
+ * reports whether each source is actually working, empty, blocked, or broken.
+ * We use ordinary GET requests only and do not bypass anti-bot controls.
  */
 export const SOURCES = [
   {
@@ -16,6 +11,8 @@ export const SOURCES = [
     label: "FHP Living",
     type: "page",
     url: "https://fhpliving.co.uk/rent/",
+    detailPathPattern: "^/properties/",
+    maxDetails: 12,
     enabled: true,
   },
   {
@@ -23,13 +20,44 @@ export const SOURCES = [
     label: "Robert Ellis",
     type: "page",
     url: "https://www.robertellis.co.uk/properties/to-rent/",
+    detailPathPattern: "^/property-to-rent/",
+    maxDetails: 14,
     enabled: true,
   },
   {
-    id: "rex-gooding",
-    label: "Rex Gooding",
+    id: "granger-oaks",
+    label: "Granger & Oaks",
     type: "page",
-    url: "https://rexgooding.com/tenants",
+    url: "https://grangerandoaks.co.uk/property_search_results/loc-all/prop-all/minp-0/maxp-0/bath-0/bed-0/type-tolet/sort-price/",
+    detailPathPattern: "^/property/",
+    maxDetails: 14,
+    enabled: true,
+  },
+  {
+    id: "city-lettings",
+    label: "City Lettings Nottingham",
+    type: "page",
+    url: "https://static.citylettingsuk.com/lettings-search-nottingham.php",
+    detailPathPattern: "(lettings|property|details)",
+    maxDetails: 12,
+    enabled: true,
+  },
+  {
+    id: "truelove-lettings",
+    label: "Truelove Property Lettings",
+    type: "page",
+    url: "https://www.truelovelettings.co.uk/rentals/city-lets",
+    detailPathPattern: "^/rentals/",
+    maxDetails: 12,
+    enabled: true,
+  },
+  {
+    id: "wellington-lettings",
+    label: "Wellington Lettings",
+    type: "page",
+    url: "https://www.wellingtonlettings.co.uk/residential-lettings",
+    detailPathPattern: "(property|details|residential)",
+    maxDetails: 12,
     enabled: true,
   },
   {
@@ -37,6 +65,8 @@ export const SOURCES = [
     label: "CP Walker & Son",
     type: "page",
     url: "https://www.cpwalker.co.uk/nottinghamshire/lettings/",
+    detailPathPattern: "(property|lettings|to-rent)",
+    maxDetails: 10,
     enabled: true,
   },
   {
@@ -44,6 +74,8 @@ export const SOURCES = [
     label: "Walton & Allen",
     type: "page",
     url: "https://www.waltonandallen.co.uk/properties-to-rent/",
+    detailPathPattern: "(property|properties-to-rent)",
+    maxDetails: 10,
     enabled: true,
   },
   {
@@ -51,6 +83,8 @@ export const SOURCES = [
     label: "HoldenCopley",
     type: "page",
     url: "https://www.holdencopley.co.uk/property-to-rent-in-nottingham/",
+    detailPathPattern: "(property|to-rent)",
+    maxDetails: 10,
     enabled: true,
   },
   {
@@ -58,6 +92,8 @@ export const SOURCES = [
     label: "Hammond Property Services",
     type: "page",
     url: "https://www.hammondpropertyservices.com/property-search/for-letting/in-nottinghamshire/",
+    detailPathPattern: "(property|letting)",
+    maxDetails: 10,
     enabled: true,
   },
   {
@@ -65,111 +101,27 @@ export const SOURCES = [
     label: "Richard Watkinson & Partners",
     type: "page",
     url: "https://www.richardwatkinson.co.uk/properties/lettings",
+    detailPathPattern: "^/properties/.+/lettings$|^/properties/[0-9]+/lettings$|^/properties/",
+    maxDetails: 10,
     enabled: true,
   },
   {
-    id: "martin-co-nottingham",
-    label: "Martin & Co Nottingham City",
+    id: "places2nest",
+    label: "Places2Nest",
     type: "page",
-    url: "https://www.martinco.com/estate-agents-and-letting-agents/branch/nottingham-city/",
+    url: "https://places2nest.co.uk/",
+    detailPathPattern: "(property|rent)",
+    maxDetails: 8,
     enabled: true,
   },
   {
-    id: "martin-co-hucknall",
-    label: "Martin & Co Hucknall",
+    id: "alasdair-morrison",
+    label: "Alasdair Morrison Lettings",
     type: "page",
-    url: "https://www.martinco.com/estate-agents-and-letting-agents/branch/hucknall/",
+    url: "https://www.amorrison.co.uk/properties-to-let",
+    detailPathPattern: "^/properties-to-let/property/",
+    maxDetails: 12,
     enabled: true,
   },
-  {
-    id: "martin-co-mansfield",
-    label: "Martin & Co Mansfield",
-    type: "page",
-    url: "https://www.martinco.com/estate-agents-and-letting-agents/branch/mansfield/",
-    enabled: true,
-  },
-  {
-    id: "whitegates-nottingham-sherwood",
-    label: "Whitegates Nottingham Sherwood",
-    type: "page",
-    url: "https://www.whitegates.co.uk/estate-agents-and-letting-agents/branch/nottingham-sherwood/",
-    enabled: true,
-  },
-  {
-    id: "whitegates-beeston",
-    label: "Whitegates Beeston",
-    type: "page",
-    url: "https://www.whitegates.co.uk/estate-agents-and-letting-agents/branch/beeston/",
-    enabled: true,
-  },
-  {
-    id: "whitegates-newark",
-    label: "Whitegates Newark",
-    type: "page",
-    url: "https://www.whitegates.co.uk/estate-agents-and-letting-agents/branch/newark/",
-    enabled: true,
-  },
-  {
-    id: "whitegates-mansfield",
-    label: "Whitegates Mansfield",
-    type: "page",
-    url: "https://www.whitegates.co.uk/estate-agents-and-letting-agents/branch/mansfield/",
-    enabled: true,
-  },
-  {
-    id: "belvoir-nottingham-central",
-    label: "Belvoir Nottingham Central",
-    type: "page",
-    url: "https://www.belvoir.co.uk/estate-agents-and-letting-agents/branch/nottingham-central/property-to-rent/",
-    enabled: true,
-  },
-  {
-    id: "belvoir-nottingham-west",
-    label: "Belvoir Nottingham West",
-    type: "page",
-    url: "https://www.belvoir.co.uk/estate-agents-and-letting-agents/branch/nottingham-west/property-to-rent/",
-    enabled: true,
-  },
-  {
-    id: "belvoir-west-bridgford",
-    label: "Belvoir West Bridgford",
-    type: "page",
-    url: "https://www.belvoir.co.uk/estate-agents-and-letting-agents/branch/west-bridgford/property-to-rent/",
-    enabled: true,
-  },
-  {
-    id: "belvoir-mansfield",
-    label: "Belvoir Mansfield",
-    type: "page",
-    url: "https://www.belvoir.co.uk/estate-agents-and-letting-agents/branch/mansfield/property-to-rent/",
-    enabled: true,
-  },
-  {
-    id: "leaders-nottinghamshire",
-    label: "Leaders Nottinghamshire",
-    type: "page",
-    url: "https://www.leaders.co.uk/properties/to-rent/in-nottinghamshire/",
-    enabled: true,
-  },
-  {
-    id: "william-h-brown-nottinghamshire",
-    label: "William H Brown Nottinghamshire",
-    type: "page",
-    url: "https://www.williamhbrown.co.uk/nottinghamshire/lettings",
-    enabled: true,
-  },
-  {
-    id: "frank-innes-nottingham",
-    label: "Frank Innes Nottingham",
-    type: "page",
-    url: "https://www.frankinnes.co.uk/branch/estate-agents/nottingham/lettings",
-    enabled: true,
-  },
-  {
-    id: "haart-nottingham",
-    label: "haart Nottingham",
-    type: "page",
-    url: "https://www.haart.co.uk/branch-finder/nottingham-estate-agents/",
-    enabled: true,
-  },
+
 ];

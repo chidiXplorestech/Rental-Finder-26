@@ -1,80 +1,135 @@
-# Rental Finder 26 — direct-source rebuild
+# Rental Finder 26 — discovery engine v2
 
-This is the Netlify-first direct-source rebuild of Rental Finder 26. The production Netlify site should only be updated after the branch/preview has been reviewed.
+Rental Finder 26 is a Nottinghamshire rental discovery tracker built for people who want to find useful homes **directly from letting-agent websites**, including listings that can appear before or outside the most obvious portal searches.
 
-## What changed
+The production target is Netlify. There is no Google CSE, Serper, Brave Search, Docker, or permanent backend server requirement.
 
-The application no longer depends on Google CSE, Serper, Brave Search or any other search-engine API.
+## What v2 changes
 
-The default architecture is now **direct-source rental discovery**:
+The app now separates **discovery** from **search**:
 
-- public/permitted JSON property feeds;
-- public/permitted RSS or Atom property feeds;
-- approved letting-agent rental pages with structured data;
-- a scheduled Netlify refresh every 15 minutes;
-- normalization, filtering and deduplication after ingestion;
-- optional database persistence;
-- demo data remains clearly labelled and is never presented as live.
+1. Netlify refreshes configured rental sources on a schedule.
+2. The source adapters read the rental index and, where appropriate, follow a limited number of same-site property-detail pages.
+3. Listings are normalized, student-only / stale properties are rejected, and duplicates are merged.
+4. The resulting inventory and listing history are saved in Netlify Blobs.
+5. User searches run against that tracked inventory instead of re-requesting every letting-agent website on every click.
 
-No search API key is required.
+This lets the app identify when a listing is first seen, how often it has been seen, and whether it is newly discovered.
 
-## Connect rental sources
+## Search preferences
 
-There are two supported ways to connect a source.
+The default search is intentionally a preference profile rather than a hard-coded two-bedroom rule:
 
-### 1. Source registry
+- 1–2 bedrooms;
+- flat/apartment preferred;
+- studio can be selected;
+- houses can be allowed as a fallback;
+- maximum rent £1,000 pcm;
+- preferred floor area 600 sq ft when the source provides it;
+- student-only / academic-year accommodation excluded by default;
+- preferred Nottingham areas can be selected and used for ranking.
 
-Edit `config/sources.mjs` and add sources you are permitted to poll:
+Area matching is presented as **preference fit**, not as an objective claim that one neighbourhood is universally "good" or "bad".
 
-```js
-export const SOURCES = [
-  {
-    id: "my-agent-feed",
-    label: "My Agent",
-    type: "feed",
-    url: "https://agent.example/to-let.rss",
-    enabled: true,
-  },
-  {
-    id: "another-agent-page",
-    label: "Another Agent",
-    type: "page",
-    url: "https://another-agent.example/properties/to-rent",
-    enabled: true,
-  },
-];
-```
+## Independent Nottinghamshire source registry
 
-Supported `type` values are `feed` and `page`.
+`config/sources.mjs` contains one entry per letting organisation, rather than counting each branch of the same chain as a separate source.
 
-### 2. Netlify environment variables
+The current registry includes independent/local organisations such as:
 
-For public feeds:
+- FHP Living
+- Robert Ellis
+- Granger & Oaks
+- City Lettings Nottingham
+- Truelove Property Lettings
+- Wellington Lettings
+- CP Walker & Son
+- Walton & Allen
+- HoldenCopley
+- Hammond Property Services
+- Richard Watkinson & Partners
+- Places2Nest
+- Alasdair Morrison Lettings
+
+A configured URL is **not** automatically described as working. After every refresh the app records a runtime state for each source:
+
+- `working` — usable rental candidates were extracted;
+- `empty` — the page loaded but no usable candidates were found;
+- `blocked` — the source returned 403/429;
+- `timeout` — the source did not answer within the limit;
+- `error` — another connector failure occurred.
+
+The UI exposes these source-health states so the displayed source count is based on what actually worked during the latest refresh.
+
+## Responsible access
+
+Rental Finder uses ordinary HTTP GET requests only. It does not bypass CAPTCHAs, anti-bot protections, authentication, or rate limits.
+
+Only public/permitted sources should be enabled. Website terms and robots policies can change, so the source registry should be reviewed periodically. If a source begins returning 403/429 or no longer permits automated access, disable it rather than attempting to circumvent the restriction.
+
+## Freshness and availability
+
+A scheduled Netlify function runs every 15 minutes and queues a background refresh. The longer background job performs source discovery and saves a new inventory snapshot.
+
+Rental Finder distinguishes between:
+
+- first seen time;
+- last seen / last checked time;
+- source refresh time;
+- obvious stale signals such as `Let Agreed`, `Let STC`, `Under Negotiation`, or `No longer available`.
+
+A timeout, 403, 429, or anti-bot page is never interpreted as proof that a property was removed.
+
+## Persistence
+
+Production persistence uses **Netlify Blobs**, which is provisioned by Netlify and requires no database credentials. The app stores:
+
+- `inventory/current` — the latest deduplicated rental inventory;
+- `inventory/history` — first/last-seen timestamps and sighting counts.
+
+Local development falls back to an in-memory store.
+
+## Source adapters
+
+For public JSON/RSS/Atom feeds the app reads the feed directly.
+
+For permitted HTML sources it:
+
+1. requests the configured rental-index page;
+2. reads structured JSON-LD where available;
+3. discovers likely property-detail links using a source-specific path pattern;
+4. follows only a limited number of detail pages with bounded concurrency;
+5. extracts structured data or useful page text;
+6. reports per-source success/failure rather than failing the whole refresh when one source breaks.
+
+The source pack is intentionally modular because estate-agent websites change independently.
+
+## Optional environment sources
+
+Extra public feeds can be configured without changing code:
 
 ```bash
 PUBLIC_FEED_URLS="https://agent.example/properties.json,https://another.example/to-let.rss"
 ```
 
-For approved HTML rental pages:
+Extra approved HTML pages require an explicit hostname allowlist:
 
 ```bash
 DIRECT_SOURCE_URLS="https://agent.example/properties/to-rent"
 DIRECT_SOURCE_ALLOWED_HOSTS="agent.example"
 ```
 
-The allowlist is intentional: the deployed app should not become an arbitrary server-side URL fetcher.
+Other optional variables:
 
-Only connect websites or feeds where automated access is permitted.
+```bash
+ALLOW_DEMO_MODE=true
+DEFAULT_REFRESH_SEARCH_JSON=
+DISABLE_BUILTIN_SOURCES=false
+```
 
-## How the source adapter works
+No search-engine credentials or database secrets are required.
 
-For feeds, Rental Finder accepts common JSON collections plus RSS/Atom.
-
-For approved HTML pages, the adapter looks for structured JSON-LD property information first. It can also collect likely property links from a rental index page, but it does not bypass anti-bot controls and does not treat 403/429/timeouts as evidence that a property was removed.
-
-Listings are normalized into price, bedrooms, floor area, postcode, property type, student restrictions, freshness and source provenance where the source actually provides those fields.
-
-## Local preview
+## Local development
 
 ```bash
 npm install
@@ -83,22 +138,7 @@ npm run dev
 
 Open `http://127.0.0.1:4173`.
 
-If no rental sources are connected yet, the app still loads normally and offers the clearly labelled demo dataset. It does not display a Google-key or CSE warning.
-
-## Scheduled refresh
-
-`netlify.toml` schedules `refresh` every 15 minutes. That function queues the background refresh, which re-runs the configured Nottingham search profile against the connected sources.
-
-## Optional persistence
-
-The app works without a database. For Supabase/Postgres persistence, create the table from `supabase/schema.sql` and configure:
-
-```bash
-SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
-
-The service-role key stays server-side.
+For a Netlify-native local environment with Functions/Blobs emulation, use the Netlify CLI after installing dependencies.
 
 ## Quality checks
 
@@ -108,30 +148,15 @@ npm run build
 npm run check
 ```
 
-## Deployment workflow
+The v2 tests cover normalization, weekly-to-monthly rent conversion, studio handling, student/stale exclusions, preference scoring, source-health reporting, detail-page extraction, deduplication, and first-seen history.
 
-This rebuild is intended to be committed to a review branch first. Use a Netlify branch/preview deployment for validation, then merge to the production branch only after review.
+## Netlify functions
 
-## Nottinghamshire source pack
+- `search` — searches the stored inventory and applies the user's preferences;
+- `health` — reports inventory age and source health;
+- `refresh` — scheduled every 15 minutes;
+- `refresh-background` — performs the longer discovery refresh and persists the result.
 
-The rebuild now ships with a broad Nottinghamshire direct-source pack enabled in `config/sources.mjs`. It currently includes public rental/lettings pages from:
+## Important limitation
 
-- FHP Living
-- Robert Ellis
-- Rex Gooding
-- CP Walker & Son
-- Walton & Allen
-- HoldenCopley
-- Hammond Property Services
-- Richard Watkinson & Partners
-- Martin & Co (Nottingham City, Hucknall and Mansfield)
-- Whitegates (Nottingham Sherwood, Beeston, Newark and Mansfield)
-- Belvoir (Nottingham Central, Nottingham West, West Bridgford and Mansfield)
-- Leaders Nottinghamshire
-- William H Brown Nottinghamshire
-- Frank Innes Nottingham
-- haart Nottingham
-
-The registry uses the agents' own public rental/branch pages, not Rightmove or Zoopla scraping. A configured source can still fail at runtime if the owner changes its site, blocks automated requests, changes robots/terms, or moves its listing page. Rental Finder treats those conditions as source failures and continues with the remaining sources.
-
-For responsible polling, keep the app's 15-minute scheduled run as the orchestration interval but avoid bypassing rate limits or anti-bot measures. If a source repeatedly returns `403`/`429`, disable that source rather than attempting to circumvent the restriction.
+A source adapter is only considered reliable after it has been exercised against the live production website. The automated test suite uses controlled fixtures; real agent sites can change markup, JavaScript rendering, URLs, or access policy at any time. The source-health panel exists specifically so those failures are visible rather than hidden.
