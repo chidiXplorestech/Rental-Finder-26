@@ -16,10 +16,11 @@ function card(listing){
   const img=listing.imageUrl?`<img src="${sanitize(listing.imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder-house',textContent:'⌂'}))"/>`:`<div class="placeholder-house">⌂</div>`;
   const status=(listing.availabilityStatus||"UNKNOWN").replaceAll("_"," ");
   const newBadge=listing.isNew?'<span class="badge new-badge">NEW</span>':"";
+  const carriedBadge=listing.carriedForward?'<span class="badge">NOT RECHECKED THIS CYCLE</span>':"";
   const reasons=Array.isArray(listing.reasons)&&listing.reasons.length?`<div class="match-reasons">${listing.reasons.map(r=>`<span>${sanitize(r)}</span>`).join("")}</div>`:"";
   const ageLine=listing.firstSeenAt?`First seen ${formatDate(listing.firstSeenAt)}${listing.timesSeen?` · ${listing.timesSeen} sighting${listing.timesSeen===1?"":"s"}`:""}`:"First seen not recorded";
   const link=listing.demo?`<a class="card-link disabled" href="#" aria-disabled="true"><span>Demo listing</span><span>↗</span></a>`:`<a class="card-link" href="${sanitize(listing.sourceUrl)}" target="_blank" rel="noopener noreferrer"><span>Open original listing</span><span>↗</span></a>`;
-  return `<article class="card"><div class="card-image">${img}<div class="image-badges"><span class="badge status">${sanitize(status)}</span>${newBadge}<span class="badge">${listing.verified?"CORE DETAILS KNOWN":"CHECK DETAILS"}</span></div></div><div class="card-body">
+  return `<article class="card"><div class="card-image">${img}<div class="image-badges"><span class="badge status">${sanitize(status)}</span>${newBadge}${carriedBadge}<span class="badge">${listing.verified?"CORE DETAILS KNOWN":"CHECK DETAILS"}</span></div></div><div class="card-body">
     <div class="card-price"><strong>${listing.rentPcm?`£${Number(listing.rentPcm).toLocaleString("en-GB")}`:"Price unclear"}</strong><small>${listing.rentPcm?"pcm":"verify"}</small></div>
     <h3>${sanitize(listing.title||"Rental listing")}</h3><p class="card-location">${sanitize(listing.location||listing.postcode||"Location needs verification")}</p>
     <div class="metrics">${metric(listing.bedrooms===0?"Studio":listing.bedrooms!=null?`${listing.bedrooms} bed`:"—","Bedrooms")}${metric(listing.floorAreaSqft?`${Math.round(listing.floorAreaSqft)} ft²`:"Unknown","Floor area")}${metric(listing.score?`${Math.round(listing.score)}`:"—","Match score")}</div>
@@ -28,20 +29,41 @@ function card(listing){
     <div class="source-line"><span>Original source</span><b title="${sanitize(listing.source)}">${sanitize(listing.source)}</b></div>${link}</div></article>`;
 }
 function filteredListings(){let items=[...state.listings];if(state.tab==="verified")items=items.filter(x=>x.verified);if(state.tab==="needs")items=items.filter(x=>!x.verified);const sort=$("sortSelect").value;if(sort==="priceAsc")items.sort((a,b)=>(a.rentPcm??1e9)-(b.rentPcm??1e9));else if(sort==="sizeDesc")items.sort((a,b)=>(b.floorAreaSqft??0)-(a.floorAreaSqft??0));else if(sort==="newest")items.sort((a,b)=>new Date(b.firstSeenAt||b.lastCheckedAt||0)-new Date(a.firstSeenAt||a.lastCheckedAt||0));else items.sort((a,b)=>(b.score??0)-(a.score??0));return items;}
-function renderSourceHealth(statuses=[]){const panel=$("sourceHealthPanel");if(!statuses.length){panel.hidden=true;return;}panel.hidden=false;const counts=statuses.reduce((a,s)=>(a[s.status]=(a[s.status]||0)+1,a),{});$("sourceHealthSummary").textContent=`${counts.working||0} working · ${statuses.length} checked`;$("sourceHealthList").innerHTML=statuses.map(s=>`<div class="source-health-item"><span class="source-dot ${sanitize(s.status)}"></span><div><strong>${sanitize(s.label)}</strong><small>${sanitize(s.status)}${Number.isFinite(s.items)?` · ${s.items} candidates`:""}${s.error?` · ${s.error}`:""}</small></div></div>`).join("");}
+function renderSourceHealth(statuses=[]){
+  const panel=$("sourceHealthPanel");if(!statuses.length){panel.hidden=true;return;}panel.hidden=false;
+  const counts=statuses.reduce((a,s)=>(a[s.status]=(a[s.status]||0)+1,a),{});
+  const pages=statuses.reduce((n,s)=>n+(Number(s.indexPagesChecked)||0),0);const details=statuses.reduce((n,s)=>n+(Number(s.detailPagesChecked)||0),0);
+  $("sourceHealthSummary").textContent=`${counts.working||0} working · ${statuses.length} checked · ${pages} index pages · ${details} property pages`;
+  $("sourceHealthList").innerHTML=statuses.map(s=>{
+    const crawl=[];if(Number.isFinite(s.indexPagesChecked))crawl.push(`${s.indexPagesChecked} index page${s.indexPagesChecked===1?"":"s"}`);if(Number.isFinite(s.detailLinksFound))crawl.push(`${s.detailLinksFound} listing links found`);if(Number.isFinite(s.detailPagesChecked))crawl.push(`${s.detailPagesChecked} details checked`);if(s.scanMode)crawl.push(`${s.scanMode} scan`);
+    return `<div class="source-health-item"><span class="source-dot ${sanitize(s.status)}"></span><div><strong>${sanitize(s.label)}</strong><small>${sanitize(s.status)}${Number.isFinite(s.items)?` · ${s.items} candidates`:""}${crawl.length?` · ${sanitize(crawl.join(" · "))}`:""}${s.error?` · ${sanitize(s.error)}`:""}</small></div></div>`;
+  }).join("");
+}
+function refreshMessage(meta={}){
+  const refreshed=meta.refreshedAt?formatDate(meta.refreshedAt):"unknown time";
+  const d=meta.delta;
+  if(meta.refreshedNow&&d){
+    const changed=(d.addedCount||0)+(d.changedCount||0)+(d.droppedCount||0);
+    if(changed===0)return `Live refresh completed ${refreshed}: no listing changes detected. ${d.seenAgainCount||0} seen again; ${d.carriedCount||0} retained from recent scans.`;
+    return `Live refresh completed ${refreshed}: ${d.addedCount||0} new, ${d.changedCount||0} changed, ${d.droppedCount||0} expired; ${d.carriedCount||0} retained from recent scans.`;
+  }
+  if(meta.cached&&meta.refreshedAt)return `Showing stored inventory from ${refreshed}. Use Refresh live sources to re-check the agent sites.`;
+  return meta.refreshedAt?`Inventory refreshed ${refreshed}.`:"Inventory refresh not recorded.";
+}
 function renderResults(meta={}){
   state.lastMeta=meta;const verified=state.listings.filter(x=>x.verified).length;const needs=state.listings.length-verified;$("verifiedCount").textContent=verified;$("needsCount").textContent=needs;$("allCount").textContent=state.listings.length;$("resultCount").textContent=plural(state.listings.length,"property");$("resultsTitle").textContent=state.listings.length?"Best tracked matches":"No matching tracked rentals";
-  const refreshed=meta.refreshedAt?`Inventory refreshed ${formatDate(meta.refreshedAt)}`:"Inventory refresh not recorded";$("lastUpdated").textContent=`${refreshed}. Always verify the original advert.`;
-  $("searchMeta").textContent=meta.provider?`${meta.workingSourceCount??0}/${meta.configuredSourceCount??0} sources working · ${plural(meta.rawResults??0,"tracked listing")} · ${plural(meta.returned??state.listings.length,"match")}`:"";
+  $("lastUpdated").textContent=`${refreshMessage(meta)} Always verify the original advert.`;
+  const d=meta.delta;const deltaText=d?` · ${d.addedCount||0} new · ${d.changedCount||0} changed`:"";
+  $("searchMeta").textContent=meta.provider?`${meta.workingSourceCount??0}/${meta.configuredSourceCount??0} sources working · ${plural(meta.rawResults??0,"tracked listing")} · ${plural(meta.returned??state.listings.length,"match")}${deltaText}`:"";
   renderSourceHealth(meta.sourceStatuses||state.health?.sourceStatuses||[]);
-  if(meta.partial){const failed=(meta.sourceStatuses||[]).filter(s=>s.status!=="working");$("partialText").textContent=failed.length?`${failed.map(s=>`${s.label} (${s.status})`).join(", ")}. Results from working sources are still shown.`:"Some configured sources did not return usable data.";$("partialNotice").hidden=false;}else $("partialNotice").hidden=true;
+  if(meta.partial){const failed=(meta.sourceStatuses||[]).filter(s=>s.status!=="working");$("partialText").textContent=failed.length?`${failed.map(s=>`${s.label} (${s.status})`).join(", ")}. Results from working sources are still shown, and recent un-rechecked listings are retained temporarily instead of being falsely removed.`:"Some configured sources did not return usable data.";$("partialNotice").hidden=false;}else $("partialNotice").hidden=true;
   $("resultsGrid").innerHTML=filteredListings().map(card).join("");$("emptyState").hidden=state.listings.length>0;if(!state.listings.length){$("emptyState").querySelector("h3").textContent="No strong matches in the tracked inventory.";$("emptyState").querySelector("p").textContent="Try a broader area, longer first-seen window, higher budget, different furnishing choice, or refresh the live sources.";}
 }
 async function health(){
-  try{const res=await fetch("/.netlify/functions/health",{cache:"no-store"});const data=await res.json();state.health=data;const configured=Number(data.configuredSourceCount||0),working=Number(data.workingSourceCount||0);if(data.inventoryRefreshedAt){$("providerBadge").textContent=`${working}/${configured} sources working`;$("providerBadge").classList.toggle("live",working>0);$("inventorySummary").textContent=`${data.inventoryCount||0} tracked listings · refreshed ${formatDate(data.inventoryRefreshedAt)}.`;}else{$("providerBadge").textContent=`${configured} sources configured`;$("inventorySummary").textContent="No inventory snapshot yet. Run the first live refresh.";}$("configNotice").hidden=configured>0;$("demoButton").hidden=!data.demoAllowed;renderSourceHealth(data.sourceStatuses||[]);}catch{$("providerBadge").textContent="Status unavailable";$("inventorySummary").textContent="Could not read inventory status.";$("demoButton").hidden=false;}
+  try{const res=await fetch("/.netlify/functions/health",{cache:"no-store"});const data=await res.json();state.health=data;const configured=Number(data.configuredSourceCount||0),working=Number(data.workingSourceCount||0);if(data.inventoryRefreshedAt){$("providerBadge").textContent=`${working}/${configured} sources working`;$("providerBadge").classList.toggle("live",working>0);const d=data.refreshDelta;const delta=d?` · ${d.addedCount||0} new last refresh`:"";$("inventorySummary").textContent=`${data.inventoryCount||0} tracked listings · refreshed ${formatDate(data.inventoryRefreshedAt)}${delta}.`;}else{$("providerBadge").textContent=`${configured} sources configured`;$("inventorySummary").textContent="No inventory snapshot yet. Run the first live refresh.";}$("configNotice").hidden=configured>0;$("demoButton").hidden=!data.demoAllowed;renderSourceHealth(data.sourceStatuses||[]);}catch{$("providerBadge").textContent="Status unavailable";$("inventorySummary").textContent="Could not read inventory status.";$("demoButton").hidden=false;}
 }
 async function search({demo=false,forceRefresh=false}={}){
-  setLoading(true,forceRefresh?"Refreshing live sources…":"Searching inventory…");
+  setLoading(true,forceRefresh?"Re-checking agent websites…":"Searching inventory…");
   const payload={...readForm(),demo,forceRefresh};
   try{const res=await fetch("/.netlify/functions/search",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Search failed (${res.status})`);state.listings=data.items||[];state.tab=state.listings.some(x=>x.verified)?"verified":"all";document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===state.tab));renderResults(data.meta||{});await health();}catch(err){state.listings=[];renderResults();setError(forceRefresh?"Live refresh could not complete":"Search could not complete",err.message||"Please try again.");}finally{setLoading(false);}
 }
