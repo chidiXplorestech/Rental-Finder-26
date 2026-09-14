@@ -17,6 +17,7 @@ export default async () => {
     inventoryCount:snapshot?.items?.length||0,
     inventoryRefreshedAt:snapshot?.refreshedAt||null,
     inventoryAgeMinutes:ageMinutes,
+    refreshDelta:snapshot?.delta||null,
     storageMode:storageMode(),
     demoAllowed:String(envValue("ALLOW_DEMO_MODE","true")).toLowerCase()==="true"
   },{headers:{"Cache-Control":"no-store"}});
